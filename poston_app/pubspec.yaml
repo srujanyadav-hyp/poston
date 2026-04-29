@@ -51,6 +51,8 @@ dependencies:
   translator: ^1.0.4+1
   android_intent_plus: ^6.0.0
   flutter_dotenv: ^6.0.1
+  firebase_core: ^4.7.0
+  firebase_messaging: ^16.2.0
 
 dev_dependencies:
   flutter_test:
