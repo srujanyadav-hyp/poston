@@ -174,6 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
           await Supabase.instance.client.auth.signUp(
             email: emailController.text.trim(),
             password: passwordController.text.trim(),
+            emailRedirectTo: 'io.supabase.poston://login-callback/',
           );
         }
 
