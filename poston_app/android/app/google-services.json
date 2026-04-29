@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "877727777718",
+    "project_id": "poston-53a48",
+    "storage_bucket": "poston-53a48.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:877727777718:android:001d83cda4291827947717",
+        "android_client_info": {
+          "package_name": "com.example.poston_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXmF16EkJaHQ9fzutvmc9mMvPDzeg6T6w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
