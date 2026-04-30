@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'notification_service.dart';
 import 'translation_helper.dart';
 import 'language_provider.dart';
 import 'translation_service.dart';
@@ -181,8 +182,14 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           if (isLoginMode) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: TranslatedText('welcome_back')),
+              const SnackBar(content: Text('Welcome Back!')), // Reverting to plain Text for stability
             );
+            
+            // Save the FCM token for notifications
+            await NotificationService.updateTokenInSupabase();
+
+            // GO BACK to the previous screen after login
+            Navigator.pop(context);
           } else {
             _showSuccessDialog();
           }
@@ -196,8 +203,8 @@ class _LoginScreenState extends State<LoginScreen> {
       } catch (error) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: TranslatedText('unexpected_error'),
+            SnackBar(
+              content: Text('Error: $error'),
               backgroundColor: Colors.red,
             ),
           );
@@ -211,9 +218,19 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Center(
-        child: SingleChildScrollView(
+      backgroundColor: Colors.black,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/temple-Minakshi-Madurai-Sundareshvara-India-goddess.webp'),
+            fit: BoxFit.cover,
+            opacity: 0.8,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: ClipRRect(
@@ -302,6 +319,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               setState(() => isLoading = true);
                               await Supabase.instance.client.auth
                                   .signInWithOAuth(OAuthProvider.google);
+                              
+                              if (mounted) {
+                                // Explicitly update token
+                                await NotificationService.updateTokenInSupabase();
+                                Navigator.pop(context);
+                              }
                             } on AuthException catch (error) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -556,6 +579,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

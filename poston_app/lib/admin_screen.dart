@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:translator/translator.dart';
+import 'notification_service.dart';
+import 'translation_helper.dart';
 import 'language_provider.dart';
 import 'translation_service.dart';
 
@@ -58,6 +60,11 @@ class _AdminScreenState extends State<AdminScreen> {
   String? _bannerIconFileName;
   bool _isBannerLoading = false;
 
+  // --- Notification State ---
+  final _notifTitleController = TextEditingController();
+  final _notifMessageController = TextEditingController();
+  bool _isSendingNotif = false;
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -72,6 +79,8 @@ class _AdminScreenState extends State<AdminScreen> {
     _bannerDiscountTextController.dispose();
     _bannerButtonTextController.dispose();
     _bannerButtonLinkController.dispose();
+    _notifTitleController.dispose();
+    _notifMessageController.dispose();
     super.dispose();
   }
 
@@ -318,7 +327,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, _) => DefaultTabController(
-        length: 4,
+        length: 5,
         child: Scaffold(
           extendBodyBehindAppBar: true,
           appBar: AppBar(
@@ -339,6 +348,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 Tab(text: TranslationService().translate('manage_services', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
                 Tab(text: TranslationService().translate('add_promo_banner', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
                 Tab(text: TranslationService().translate('manage_banners', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
+                Tab(child: const Text('Notifications', style: TextStyle(fontSize: 12))),
               ],
             ),
           ),
@@ -359,6 +369,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildManageServicesTab(),
                   _buildBannerTab(),
                   _buildManageBannersTab(),
+                  _buildNotificationTab(),
                 ],
               ),
             ),
@@ -545,7 +556,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
+                  value: _selectedCategory,
                   items: _categories
                       .map(
                         (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
@@ -792,6 +803,115 @@ class _AdminScreenState extends State<AdminScreen> {
       backgroundColor: Colors.orange,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
+  }
+
+  Widget _buildNotificationTab() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+        child: Container(
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Send Notification to Premium Users',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.orange),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'This message will ONLY be sent to users with a Premium subscription.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _notifTitleController,
+                decoration: _inputDeco('Notification Title'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _notifMessageController,
+                maxLines: 4,
+                decoration: _inputDeco('Message Body'),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isSendingNotif ? null : _sendPremiumNotification,
+                  style: _btnStyle(),
+                  child: _isSendingNotif
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Send to Premium Users',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendPremiumNotification() async {
+    final title = _notifTitleController.text.trim();
+    final message = _notifMessageController.text.trim();
+
+    if (title.isEmpty || message.isEmpty) {
+      _showError('Please enter both a title and a message.');
+      return;
+    }
+
+    setState(() => _isSendingNotif = true);
+
+    try {
+      // 1. Fetch only PREMIUM users from user_roles
+      final List<dynamic> premiumUsers = await Supabase.instance.client
+          .from('user_roles')
+          .select('email, fcm_token')
+          .eq('is_premium', true);
+
+      // 2. Filter out users without tokens
+      final List<String> tokens = premiumUsers
+          .where((user) => user['fcm_token'] != null)
+          .map((user) => user['fcm_token'] as String)
+          .toList();
+
+      if (tokens.isEmpty) {
+        _showError('No premium users with active device tokens found.');
+        return;
+      }
+
+      // 3. Trigger the real FCM send
+      await NotificationService.sendToTokens(
+        tokens: tokens,
+        title: title,
+        body: message,
+      );
+
+      _showSuccess('Successfully sent to ${tokens.length} Premium Users!');
+      _notifTitleController.clear();
+      _notifMessageController.clear();
+      
+    } catch (e) {
+      _showError('Error sending notification: $e');
+    } finally {
+      if (mounted) setState(() => _isSendingNotif = false);
+    }
   }
 
   Widget _buildImagePickerBox({

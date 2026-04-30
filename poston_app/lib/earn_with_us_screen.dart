@@ -1,7 +1,9 @@
 import 'dart:io';
+// import 'upi_payment_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'login_screen.dart';
 import 'package:translator/translator.dart';
 import 'package:provider/provider.dart';
 import 'language_provider.dart';
@@ -80,6 +82,17 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
   }
 
   Future<void> _submitServiceData() async {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    
+    // 1. If not logged in, go to Login Screen
+    if (currentUser == null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+      return;
+    }
+
     if (!_serviceFormKey.currentState!.validate()) return;
     if (_serviceImageFile == null) {
       _showError('Please select a service image first');
@@ -87,6 +100,21 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
     }
 
     setState(() => _isServiceLoading = true);
+
+    /*
+    // REQUIRE PAYMENT FIRST (SKIPPED FOR NOW)
+    final success = await UpiPaymentService.initiatePayment(
+      amount: 1.0, // Listing fee
+      transactionId: 'LIST${DateTime.now().millisecondsSinceEpoch}',
+      transactionNote: 'Service Listing Fee',
+    );
+
+    if (!success) {
+      _showError('Payment failed or cancelled. Listing aborted.');
+      if (mounted) setState(() => _isServiceLoading = false);
+      return;
+    }
+    */
 
     double? lat;
     double? lng;

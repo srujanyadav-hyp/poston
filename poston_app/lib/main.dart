@@ -18,12 +18,14 @@ import 'translation_service.dart';
 import 'language_selection_screen.dart';
 import 'astrology_subscription_screen.dart';
 import 'earn_with_us_screen.dart';
-import 'l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'l10n/app_localizations.dart';
+import 'payment_test_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
+import 'notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,10 +34,27 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Initialize Notifications
+  await NotificationService.initialize();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
+  debugPrint('DEBUG: Starting Supabase initialization...');
   await Supabase.initialize(
-    url: 'https://sifkyueyowfwiajdrpmv.supabase.co',
-    anonKey: 'sb_publishable_XOCtc4cszDhlMA3kDaXI2w_LvqOStKc',
+    url: dotenv.get('SUPABASE_URL'),
+    anonKey: dotenv.get('SUPABASE_ANON_KEY'),
   );
+  debugPrint('DEBUG: Supabase initialization finished.');
+
+  // Check if user is already logged in and sync token
+  final currentUser = Supabase.instance.client.auth.currentUser;
+  if (currentUser != null && currentUser.email != null) {
+    debugPrint('DEBUG: Persistent user found: ${currentUser.email}');
+    NotificationService.updateTokenInSupabase();
+  } else {
+    debugPrint('DEBUG: No persistent user found at startup.');
+  }
 
   // Initialize translations
   await TranslationService().init();
@@ -47,9 +66,11 @@ Future<void> main() async {
   Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
     final event = data.event;
     final user = data.session?.user;
+    print('DEBUG: Auth State Change Event: $event, User: ${user?.email}');
 
-    if (event == AuthChangeEvent.signedIn && user != null && user.email != null) {
+    if ((event == AuthChangeEvent.signedIn || event == AuthChangeEvent.initialSession) && user != null && user.email != null) {
       try {
+        // Sync User Role
         final existingRole = await Supabase.instance.client
             .from('user_roles')
             .select('role')
@@ -62,8 +83,12 @@ Future<void> main() async {
             'role': 'user',
           });
         }
+        
+        // Sync FCM Token
+        await NotificationService.updateTokenInSupabase();
+        
       } catch (e) {
-        debugPrint('Error inserting user role: $e');
+        debugPrint('Error syncing user data: $e');
       }
     }
   });
@@ -121,6 +146,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const ChatScreen(),
+    const PaymentTestScreen(),
     const ProfileScreen(),
   ];
 
@@ -167,6 +193,12 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   _buildNavItem(
                     2,
+                    Icons.payments_outlined,
+                    Icons.payments,
+                    'Pay',
+                  ),
+                  _buildNavItem(
+                    3,
                     Icons.person_outline,
                     Icons.person,
                     'profile',
