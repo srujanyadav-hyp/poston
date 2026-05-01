@@ -135,7 +135,7 @@ class _ChatScreenState extends State<ChatScreen> {
         decoration: const BoxDecoration(
           color: Color(0xFFF9F9F9), // App Background Color
           image: DecorationImage(
-            image: AssetImage('assets/images/om-symbol.png'),
+            image: AssetImage('assets/images/OM-Symbol.png'),
             fit: BoxFit
                 .scaleDown, // Makes it centered and unscaled instead of stretching over everything
             colorFilter: ColorFilter.mode(Colors.white70, BlendMode.lighten),

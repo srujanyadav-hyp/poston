@@ -327,7 +327,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, _) => DefaultTabController(
-        length: 5,
+        length: 6,
         child: Scaffold(
           extendBodyBehindAppBar: true,
           appBar: AppBar(
@@ -348,7 +348,8 @@ class _AdminScreenState extends State<AdminScreen> {
                 Tab(text: TranslationService().translate('manage_services', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
                 Tab(text: TranslationService().translate('add_promo_banner', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
                 Tab(text: TranslationService().translate('manage_banners', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
-                Tab(child: const Text('Notifications', style: TextStyle(fontSize: 12))),
+                Tab(text: TranslationService().translate('rituals', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
+                Tab(text: TranslationService().translate('notifications', languageProvider.selectedLanguages.isNotEmpty ? languageProvider.selectedLanguages.first : 'English')),
               ],
             ),
           ),
@@ -369,6 +370,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildManageServicesTab(),
                   _buildBannerTab(),
                   _buildManageBannersTab(),
+                  _buildRitualBookingsTab(),
                   _buildNotificationTab(),
                 ],
               ),
@@ -798,9 +800,98 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  Widget _buildRitualBookingsTab() {
+    return Consumer<LanguageProvider>(
+      builder: (context, provider, _) => StreamBuilder<List<Map<String, dynamic>>>(
+        stream: Supabase.instance.client
+            .from('ritual_bookings')
+            .stream(primaryKey: ['id'])
+            .order('created_at', ascending: false),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.orange));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+          }
+          final items = snapshot.data ?? [];
+          if (items.isEmpty) {
+            return const Center(child: Text('No Ritual Bookings Yet.', style: TextStyle(color: Colors.white, fontSize: 18)));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return Card(
+                color: Colors.white.withValues(alpha: 0.95),
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: ExpansionTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.orange.shade800,
+                    child: const Icon(Icons.temple_hindu, color: Colors.white, size: 20),
+                  ),
+                  title: Text(
+                    item['ritual_name'] ?? 'Unknown Ritual',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  subtitle: Text(
+                    '${item['name']} | ${item['temple_name']}',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildRitualDetailRow(Icons.person, 'Devotee', item['name']),
+                          _buildRitualDetailRow(Icons.phone, 'Contact', item['contact_number']),
+                          _buildRitualDetailRow(Icons.email, 'Email', item['user_email']),
+                          _buildRitualDetailRow(Icons.temple_hindu, 'Temple', item['temple_name']),
+                          _buildRitualDetailRow(Icons.calendar_today, 'Date', item['created_at'].toString().substring(0, 10)),
+                          const Divider(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () => _deleteRecord('ritual_bookings', item['id']),
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRitualDetailRow(IconData icon, String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.orange.shade800),
+          const SizedBox(width: 8),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Expanded(child: Text(value ?? 'N/A', style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
+  }
+
   ButtonStyle _btnStyle() {
     return ElevatedButton.styleFrom(
-      backgroundColor: Colors.orange,
+      backgroundColor: Colors.orange.shade800,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }

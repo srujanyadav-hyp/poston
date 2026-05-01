@@ -229,31 +229,34 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<LanguageProvider>(context);
+    final lang = provider.selectedLanguages.isNotEmpty ? provider.selectedLanguages.first : 'English';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF9F2),
       appBar: AppBar(
         backgroundColor: Colors.orange.shade800,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          "Earn with Us",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          TranslationService().translate('earn_with_us', lang),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/om-symbol.png'),
+            image: AssetImage('assets/images/OM-Symbol.png'),
             fit: BoxFit.scaleDown,
             colorFilter: ColorFilter.mode(Color(0x33FFB74D), BlendMode.dstATop),
           ),
         ),
-        child: _buildAddServiceTab(),
+        child: _buildAddServiceTab(lang),
       ),
     );
   }
 
-  Widget _buildAddServiceTab() {
+  Widget _buildAddServiceTab(String lang) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Form(
@@ -261,9 +264,9 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              "Partner With Us",
-              style: TextStyle(
+            Text(
+              TranslationService().translate('partner_with_us', lang),
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.orange,
@@ -272,7 +275,7 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              "List your service to thousands of users.",
+              TranslationService().translate('list_service_desc', lang),
               style: TextStyle(color: Colors.brown.shade600),
               textAlign: TextAlign.center,
             ),
@@ -306,7 +309,7 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
                           Icon(Icons.add_a_photo, size: 50, color: Colors.orange.shade300),
                           const SizedBox(height: 10),
                           Text(
-                            "Upload Service Photo",
+                            TranslationService().translate('upload_service_photo', lang),
                             style: TextStyle(color: Colors.orange.shade700, fontWeight: FontWeight.w600),
                           ),
                         ],
@@ -317,21 +320,24 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
 
             _buildInputField(
               controller: _titleController,
-              label: 'Service Title',
+              label: TranslationService().translate('service_title', lang),
               icon: Icons.title,
+              lang: lang,
             ),
             const SizedBox(height: 16),
             _buildInputField(
               controller: _subHeadingController,
-              label: 'Price / Subheading',
+              label: TranslationService().translate('price_subheading', lang),
               icon: Icons.currency_rupee,
+              lang: lang,
             ),
             const SizedBox(height: 16),
             _buildInputField(
               controller: _descController,
-              label: 'Description',
+              label: TranslationService().translate('description', lang),
               icon: Icons.description,
               maxLines: 3,
+              lang: lang,
             ),
             const SizedBox(height: 16),
             
@@ -365,7 +371,7 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              _selectedCategory,
+                              TranslationService().translate(_selectedCategory.toLowerCase().replaceAll(' ', '_'), lang),
                               style: TextStyle(
                                 fontSize: 16, 
                                 color: Colors.brown.shade800,
@@ -404,7 +410,7 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      category,
+                                      TranslationService().translate(category.toLowerCase().replaceAll(' ', '_'), lang),
                                       style: TextStyle(
                                         color: isSelected ? Colors.orange.shade800 : Colors.brown.shade700,
                                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -432,9 +438,10 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
 
             _buildInputField(
               controller: _mapLinkController,
-              label: 'Google Maps Link (Optional)',
+              label: TranslationService().translate('google_maps_link', lang),
               icon: Icons.map,
               isRequired: false,
+              lang: lang,
             ),
             const SizedBox(height: 16),
             Row(
@@ -442,20 +449,22 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
                 Expanded(
                   child: _buildInputField(
                     controller: _latitudeController,
-                    label: 'Latitude',
+                    label: TranslationService().translate('latitude', lang),
                     icon: Icons.location_on,
                     isRequired: false,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    lang: lang,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildInputField(
                     controller: _longitudeController,
-                    label: 'Longitude',
+                    label: TranslationService().translate('longitude', lang),
                     icon: Icons.location_on,
                     isRequired: false,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    lang: lang,
                   ),
                 ),
               ],
@@ -474,9 +483,9 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
                       ),
                       elevation: 5,
                     ),
-                    child: const Text(
-                      'List Service',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    child: Text(
+                      TranslationService().translate('list_service_button', lang),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                   ),
             const SizedBox(height: 40),
@@ -486,12 +495,11 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
     );
   }
 
-
-
   Widget _buildInputField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required String lang,
     bool isRequired = true,
     int maxLines = 1,
     TextInputType? keyboardType,
@@ -502,7 +510,7 @@ class _EarnWithUsScreenState extends State<EarnWithUsScreen> {
       keyboardType: keyboardType,
       validator: (value) {
         if (isRequired && (value == null || value.trim().isEmpty)) {
-          return 'Please enter $label';
+          return '${TranslationService().translate('please_enter', lang)} $label';
         }
         return null;
       },

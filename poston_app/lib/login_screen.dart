@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'notification_service.dart';
 import 'translation_helper.dart';
 import 'language_provider.dart';
@@ -317,11 +318,36 @@ class _LoginScreenState extends State<LoginScreen> {
                           onTap: () async {
                             try {
                               setState(() => isLoading = true);
-                              await Supabase.instance.client.auth
-                                  .signInWithOAuth(OAuthProvider.google);
+                              
+                              // 1. Initialize Google Sign In
+                              // For Android: clientID is optional if you have google-services.json
+                              // For iOS: clientID is required from Google Cloud Console
+                              final GoogleSignIn googleSignIn = GoogleSignIn(
+                                serverClientId: '877727777718-grgadcg4or6345fqr5okl1ldufr73oct.apps.googleusercontent.com',
+                              );
+                              
+                              final googleUser = await googleSignIn.signIn();
+                              if (googleUser == null) {
+                                setState(() => isLoading = false);
+                                return; // User cancelled
+                              }
+
+                              final googleAuth = await googleUser.authentication;
+                              final accessToken = googleAuth.accessToken;
+                              final idToken = googleAuth.idToken;
+
+                              if (idToken == null) {
+                                throw const AuthException('No ID Token found from Google');
+                              }
+
+                              // 2. Sign in to Supabase with the ID Token
+                              await Supabase.instance.client.auth.signInWithIdToken(
+                                provider: OAuthProvider.google,
+                                idToken: idToken,
+                                accessToken: accessToken,
+                              );
                               
                               if (mounted) {
-                                // Explicitly update token
                                 await NotificationService.updateTokenInSupabase();
                                 Navigator.pop(context);
                               }

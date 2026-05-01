@@ -26,6 +26,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'notification_service.dart';
+import 'ritual_booking_screen.dart';
+import 'mandala_portal.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -146,7 +148,6 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const ChatScreen(),
-    const PaymentTestScreen(),
     const ProfileScreen(),
   ];
 
@@ -193,12 +194,6 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   _buildNavItem(
                     2,
-                    Icons.payments_outlined,
-                    Icons.payments,
-                    'Pay',
-                  ),
-                  _buildNavItem(
-                    3,
                     Icons.person_outline,
                     Icons.person,
                     'profile',
@@ -381,6 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false;
   Timer? _debounce;
   final TextEditingController _searchController = TextEditingController();
+  final PageController _worldController = PageController();
   Position? _currentPosition;
 
   @override
@@ -614,247 +610,274 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 : const SizedBox.shrink(),
           ),
-
-          // CAROUSEL OR SEARCH RESULTS
           Expanded(
             child: _isSearching
                 ? _buildSearchResults()
-                : SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 15),
-                        CarouselSlider(
-                          options: CarouselOptions(
-                            height: 180,
-                            autoPlay: true,
-                            enlargeCenterPage: true,
-                            viewportFraction: 0.9,
-                            autoPlayInterval: const Duration(seconds: 4),
+                : PageView(
+                    controller: _worldController,
+                    scrollDirection: Axis.vertical,
+                    physics: const PageScrollPhysics(),
+                    children: [
+                      // WORLD 0: THE SACRED MANDALA
+                      Stack(
+                        children: [
+                          Center(
+                            child: const RadiantMandalaPortal(images: carouselImages),
                           ),
-                          items: carouselImages.map((url) {
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [Image.asset(url, fit: BoxFit.cover)],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(height: 25),
-
-                        // Stylish "Famous Temples" Header
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  AppLocalizations.of(context)!.famous_temples,
-                                  style: const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.black87,
-                                    letterSpacing: 0.5,
-                                    height: 1.2,
-                                  ),
-                                  maxLines: 2,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                AppLocalizations.of(context)!.view_all_small,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Card UI converted and styled for Devotion App Theme
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Consumer<LanguageProvider>(
-                            builder: (context, provider, _) => Row(
-                              children: [
-                                _buildMusicCard(
-                                  title: AppLocalizations.of(context)!.venkateswara,
-                                  desc: AppLocalizations.of(context)!.tirumala_desc,
-                                  imagePath: "assets/images/image.png",
-                                  detailImagePath:
-                                      "assets/images/venkateswara.jpg",
-                                ),
-                                const SizedBox(width: 16),
-                                _buildMusicCard(
-                                  title: AppLocalizations.of(context)!.sabarimala,
-                                  desc: AppLocalizations.of(context)!.ayyappa_desc,
-                                  imagePath:
-                                      "assets/images/sabarimala-share-image.jpg",
-                                ),
-                                const SizedBox(width: 16),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 25),
-
-                        StreamBuilder<List<Map<String, dynamic>>>(
-                          stream: Supabase.instance.client
-                              .from('promo_banners')
-                              .stream(primaryKey: ['id'])
-                              .order('created_at', ascending: false)
-                              .limit(5),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                              // By default, if nothing is configured in the admin panel, show the static fallback
-                              return CarouselSlider(
-                                options: CarouselOptions(
-                                  autoPlay: true,
-                                  viewportFraction: 1.0,
-                                  enlargeCenterPage: false,
-                                  height: 160.0,
-                                ),
-                                items: [
-                                  PromoBanner(
-                                    title: AppLocalizations.of(context)!.promo_title,
-                                    subtitle: AppLocalizations.of(context)!.promo_subtitle,
-                                    discountText: AppLocalizations.of(context)!.promo_discount_text,
-                                    buttonText: AppLocalizations.of(context)!.promo_button_text,
-                                  )
-                                ],
-                              );
-                            }
-                            final banners = snapshot.data!;
-                            return CarouselSlider(
-                              options: CarouselOptions(
-                                autoPlay: true,
-                                viewportFraction: 1.0,
-                                enlargeCenterPage: false,
-                                height: 160.0,
-                                autoPlayInterval: const Duration(seconds: 4),
-                              ),
-                              items: banners.map((bannerData) {
-                                final langCode = provider.currentLocale.languageCode;
-                                return PromoBanner(
-                                  title: bannerData['title_$langCode'] ?? bannerData['title'] ?? AppLocalizations.of(context)!.promo_title,
-                                  subtitle: bannerData['subtitle_$langCode'] ?? bannerData['subtitle'] ?? AppLocalizations.of(context)!.promo_subtitle,
-                                  discountValue: bannerData['discount_value'] ?? '',
-                                  discountText: bannerData['discount_text'] ?? AppLocalizations.of(context)!.promo_discount_text,
-                                  buttonText: bannerData['button_text'] ?? AppLocalizations.of(context)!.promo_button_text,
-                                  buttonLink: bannerData['button_link'] ?? '',
-                                  backgroundImageUrl: bannerData['bg_image_url'] ?? '',
-                                  iconImageUrl: bannerData['icon_url'] ?? '',
+                          // Scroll Hint / Tap Zone at bottom
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 120,
+                            child: GestureDetector(
+                              onTap: () {
+                                _worldController.animateToPage(
+                                  1,
+                                  duration: const Duration(milliseconds: 1000),
+                                  curve: Curves.fastOutSlowIn,
                                 );
-                              }).toList(),
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 25),
-
-                        // Our Services Header
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  AppLocalizations.of(context)!.our_services,
-                                  style: const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.black87,
-                                    letterSpacing: 0.5,
-                                    height: 1.2,
+                              },
+                              behavior: HitTestBehavior.translucent,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Colors.white.withOpacity(0.1),
+                                      Colors.transparent,
+                                    ],
                                   ),
-                                  maxLines: 2,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                AppLocalizations.of(context)!.view_all_small,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Services Cards
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Consumer<LanguageProvider>(
-                            builder: (context, provider, _) => Column(
-                              children: [
-                                _buildServiceCard(
-                                  title: AppLocalizations.of(context)!.temples_info,
-                                  category: "Temple Information",
-                                  location: AppLocalizations.of(context)!.worldwide_locations,
-                                  imageUrl: "assets/images/licensed-image.jpg",
-                                ),
-                                const SizedBox(height: 12),
-                                _buildServiceCard(
-                                  title: AppLocalizations.of(context)!.hotels_label,
-                                  category: "Hotels",
-                                  location: AppLocalizations.of(context)!.find_best_stays,
-                                  imageUrl: "assets/images/image copy.png",
-                                ),
-                                const SizedBox(height: 12),
-                                _buildServiceCard(
-                                  title: AppLocalizations.of(context)!.cabs_label,
-                                  category: "Cabs and Travels",
-                                  location: AppLocalizations.of(context)!.book_rides_easily,
-                                  imageUrl: "assets/images/cars.jpg",
-                                ),
-                                const SizedBox(height: 12),
-                                _buildServiceCard(
-                                  title: AppLocalizations.of(context)!.parking_label,
-                                  category: "Parking",
-                                  location: AppLocalizations.of(context)!.find_safe_parking,
-                                  imageUrl:
-                                      "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-674x446/07/03/ef/11.jpg",
-                                ),
-                                const SizedBox(height: 12),
-                                _buildServiceCard(
-                                  title: AppLocalizations.of(context)!.petrol_label,
-                                  category: "Petrol Bunks",
-                                  location: AppLocalizations.of(context)!.locate_fuel_stations,
-                                  imageUrl: "assets/images/cars.jpg",
-                                ),
-                                const SizedBox(height: 12),
-                                _buildServiceCard(
-                                  title: AppLocalizations.of(context)!.earn_label,
-                                  category: "Earn with us",
-                                  location: AppLocalizations.of(context)!.join_our_network,
-                                  imageUrl: "",
-                                  icon: Icons.monetization_on_rounded,
-                                  iconColor: Colors.amber.shade600,
-                                ),
-                                const SizedBox(height: 12),
-                                _buildServiceCard(
-                                  title: AppLocalizations.of(context)!.contact_label,
-                                  category: "Contact and chat",
-                                  location: AppLocalizations.of(context)!.support_24_7,
-                                  imageUrl: "assets/images/image.png",
-                                ),
-                              ],
                             ),
                           ),
+                        ],
                       ),
 
-                        const SizedBox(height: 100), // Spacing for bottom nav
-                      ],
+                      // WORLD 1: THE HOME CONTENT
+                      NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification is ScrollUpdateNotification) {
+                            // If we are at the top and the user pulls down, snap back to Mandala
+                            if (notification.metrics.pixels <= 0 && notification.scrollDelta! < -10) {
+                              _worldController.animateToPage(
+                                0,
+                                duration: const Duration(milliseconds: 800),
+                                curve: Curves.fastOutSlowIn,
+                              );
+                            }
+                          }
+                          return false;
+                        },
+                        child: Container(
+                          color: Colors.white,
+                          child: SingleChildScrollView(
+                            child: Column(
+                            children: [
+                              const SizedBox(height: 15),
+                              // Handle to indicate swipe back
+                              Container(
+                                width: 40,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(2.5),
+                                ),
+                              ),
+                              const SizedBox(height: 15),
+                              
+                              // Stylish "Famous Temples" Header
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        AppLocalizations.of(context)!.famous_temples,
+                                        style: const TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.black87,
+                                          letterSpacing: 0.5,
+                                          height: 1.2,
+                                        ),
+                                        maxLines: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      AppLocalizations.of(context)!.view_all_small,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Card UI
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Consumer<LanguageProvider>(
+                                  builder: (context, provider, _) => Row(
+                                    children: [
+                                      _buildMusicCard(
+                                        title: AppLocalizations.of(context)!.venkateswara,
+                                        desc: AppLocalizations.of(context)!.tirumala_desc,
+                                        imagePath: "assets/images/image.png",
+                                        detailImagePath: "assets/images/venkateswara.jpg",
+                                      ),
+                                      const SizedBox(width: 16),
+                                      _buildMusicCard(
+                                        title: AppLocalizations.of(context)!.sabarimala,
+                                        desc: AppLocalizations.of(context)!.ayyappa_desc,
+                                        imagePath: "assets/images/sabarimala-share-image.jpg",
+                                      ),
+                                      const SizedBox(width: 16),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 25),
+
+                              // Promo Banners
+                              StreamBuilder<List<Map<String, dynamic>>>(
+                                stream: Supabase.instance.client
+                                    .from('promo_banners')
+                                    .stream(primaryKey: ['id'])
+                                    .order('created_at', ascending: false)
+                                    .limit(5),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                    return CarouselSlider(
+                                      options: CarouselOptions(
+                                        autoPlay: true,
+                                        viewportFraction: 1.0,
+                                        height: 160.0,
+                                      ),
+                                      items: [
+                                        PromoBanner(
+                                          title: AppLocalizations.of(context)!.promo_title,
+                                          subtitle: AppLocalizations.of(context)!.promo_subtitle,
+                                          discountText: AppLocalizations.of(context)!.promo_discount_text,
+                                          buttonText: AppLocalizations.of(context)!.promo_button_text,
+                                        )
+                                      ],
+                                    );
+                                  }
+                                  return CarouselSlider(
+                                    options: CarouselOptions(
+                                      autoPlay: true,
+                                      viewportFraction: 1.0,
+                                      height: 160.0,
+                                    ),
+                                    items: snapshot.data!.map((bannerData) {
+                                      return PromoBanner(
+                                        title: bannerData['title'] ?? '',
+                                        subtitle: bannerData['subtitle'] ?? '',
+                                        discountText: bannerData['discount_text'] ?? '',
+                                        buttonText: bannerData['button_text'] ?? AppLocalizations.of(context)!.promo_button_text,
+                                        buttonLink: bannerData['button_link'] ?? '',
+                                        backgroundImageUrl: bannerData['bg_image_url'] ?? '',
+                                        iconImageUrl: bannerData['icon_url'] ?? '',
+                                      );
+                                    }).toList(),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 25),
+
+                              // Our Services Header
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        AppLocalizations.of(context)!.our_services,
+                                        style: const TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.black87,
+                                          letterSpacing: 0.5,
+                                          height: 1.2,
+                                        ),
+                                        maxLines: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      AppLocalizations.of(context)!.view_all_small,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Services Cards
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Consumer<LanguageProvider>(
+                                  builder: (context, provider, _) => Column(
+                                    children: [
+                                      _buildServiceCard(
+                                        title: AppLocalizations.of(context)!.temples_info,
+                                        category: "Temple Information",
+                                        location: AppLocalizations.of(context)!.worldwide_locations,
+                                        imageUrl: "assets/images/licensed-image.jpg",
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _buildServiceCard(
+                                        title: AppLocalizations.of(context)!.hotels_label,
+                                        category: "Hotels",
+                                        location: AppLocalizations.of(context)!.find_best_stays,
+                                        imageUrl: "assets/images/image copy.png",
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _buildServiceCard(
+                                        title: AppLocalizations.of(context)!.cabs_label,
+                                        category: "Cabs and Travels",
+                                        location: AppLocalizations.of(context)!.book_rides_easily,
+                                        imageUrl: "assets/images/cars.jpg",
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _buildServiceCard(
+                                        title: AppLocalizations.of(context)!.earn_label,
+                                        category: "Earn with us",
+                                        location: AppLocalizations.of(context)!.join_our_network,
+                                        imageUrl: "",
+                                        icon: Icons.monetization_on_rounded,
+                                        iconColor: Colors.amber.shade600,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _buildServiceCard(
+                                        title: AppLocalizations.of(context)!.contact_label,
+                                        category: "Contact and chat",
+                                        location: AppLocalizations.of(context)!.support_24_7,
+                                        imageUrl: "assets/images/image.png",
+                                      ),
+                                      const SizedBox(height: 100), // Spacing for bottom nav
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
+                  ],
                   ),
           ),
         ],
@@ -972,6 +995,13 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => const EarnWithUsScreen(),
+            ),
+          );
+        } else if (category == "Ritual Perform") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RitualBookingScreen(),
             ),
           );
         } else {
@@ -1985,7 +2015,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
         decoration: const BoxDecoration(
           color: Color(0xFFFFF9F2),
           image: DecorationImage(
-            image: AssetImage('assets/images/om-symbol.png'),
+            image: AssetImage('assets/images/OM-Symbol.png'),
             fit: BoxFit.scaleDown,
             colorFilter: ColorFilter.mode(Color(0x33FFB74D), BlendMode.dstATop),
           ),
@@ -2272,47 +2302,47 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                             borderRadius: BorderRadius.circular(12),
                                             border: Border.all(color: Colors.grey.shade300),
                                           ),
-                                          child: Text(
-                                            'Distance Uncalculated',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey.shade600,
+                                            child: Text(
+                                              'Distance Uncalculated',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey.shade600,
+                                              ),
                                             ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      item['description_${Provider.of<LanguageProvider>(context).currentLocale.languageCode}'] ??
+                                          item['description'] ??
+                                          'No description provided.',
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.network(
+                                        item['image_url'] ?? '',
+                                        width: double.infinity,
+                                        height: 160,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, err, stack) => Container(
+                                          height: 160,
+                                          width: double.infinity,
+                                          color: Colors.grey.shade200,
+                                          child: const Center(
+                                            child: Text('Image missing'),
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    item['description_${Provider.of<LanguageProvider>(context).currentLocale.languageCode}'] ?? item['description'] ??
-                                        'No description provided.',
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.5,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.network(
-                                      item['image_url'] ?? '',
-                                      width: double.infinity,
-                                      height: 160,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, err, stack) =>
-                                          Container(
-                                            height: 160,
-                                            width: double.infinity,
-                                            color: Colors.grey.shade200,
-                                            child: const Center(
-                                              child: Text('Image missing'),
-                                            ),
-                                          ),
-                                    ),
-                                  ),
                                   if (item['map_link'] != null && item['map_link'].toString().isNotEmpty) ...[
                                     const SizedBox(height: 12),
                                     SizedBox(

@@ -134,7 +134,7 @@ class _AstrologySubscriptionScreenState extends State<AstrologySubscriptionScree
             decoration: const BoxDecoration(
               color: Color(0xFFFFF9F2),
               image: DecorationImage(
-                image: AssetImage('assets/images/om-symbol.png'),
+                image: AssetImage('assets/images/OM-Symbol.png'),
                 fit: BoxFit.scaleDown,
                 colorFilter: ColorFilter.mode(Color(0x33FFB74D), BlendMode.dstATop),
               ),
