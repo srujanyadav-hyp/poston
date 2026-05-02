@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'admin_screen.dart';
@@ -38,6 +39,11 @@ Future<void> main() async {
 
   // Initialize Notifications
   await NotificationService.initialize();
+
+  // Initialize Google Sign-In (required by google_sign_in v7)
+  await GoogleSignIn.instance.initialize(
+    serverClientId: '877727777718-grgadcg4or6345fqr5okl1ldufr73oct.apps.googleusercontent.com',
+  );
 
   // Load environment variables
   await dotenv.load(fileName: ".env");

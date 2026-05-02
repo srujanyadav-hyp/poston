@@ -12,7 +12,20 @@
           "package_name": "com.example.poston_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "877727777718-7uoo19injr05d7v7c8jn2jhq8m3d3jvj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.poston_app",
+            "certificate_hash": "c2ae30a013d5ebee46fe1df177ae777c86ba5550"
+          }
+        },
+        {
+          "client_id": "877727777718-grgadcg4or6345fqr5okl1ldufr73oct.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDXmF16EkJaHQ9fzutvmc9mMvPDzeg6T6w"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "877727777718-grgadcg4or6345fqr5okl1ldufr73oct.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

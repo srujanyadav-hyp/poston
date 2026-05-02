@@ -319,32 +319,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             try {
                               setState(() => isLoading = true);
                               
-                              // 1. Initialize Google Sign In
-                              // For Android: clientID is optional if you have google-services.json
-                              // For iOS: clientID is required from Google Cloud Console
-                              final GoogleSignIn googleSignIn = GoogleSignIn(
-                                serverClientId: '877727777718-grgadcg4or6345fqr5okl1ldufr73oct.apps.googleusercontent.com',
-                              );
+                              // v7 API: use GoogleSignIn.instance (initialized in main.dart)
+                              // This triggers the native account picker, NOT the browser
+                              final googleUser = await GoogleSignIn.instance.authenticate();
                               
-                              final googleUser = await googleSignIn.signIn();
-                              if (googleUser == null) {
-                                setState(() => isLoading = false);
-                                return; // User cancelled
-                              }
-
-                              final googleAuth = await googleUser.authentication;
-                              final accessToken = googleAuth.accessToken;
-                              final idToken = googleAuth.idToken;
+                              // In google_sign_in v7, accessToken was removed from
+                              // GoogleSignInAuthentication. Only idToken is needed for Supabase.
+                              final idToken = (await googleUser.authentication).idToken;
 
                               if (idToken == null) {
                                 throw const AuthException('No ID Token found from Google');
                               }
 
-                              // 2. Sign in to Supabase with the ID Token
+                              // Sign in to Supabase with the Google ID Token
                               await Supabase.instance.client.auth.signInWithIdToken(
                                 provider: OAuthProvider.google,
                                 idToken: idToken,
-                                accessToken: accessToken,
                               );
                               
                               if (mounted) {
@@ -363,10 +353,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             } catch (error) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Unexpected error with Google sign-in',
-                                    ),
+                                  SnackBar(
+                                    content: Text('Google sign-in failed: $error'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
