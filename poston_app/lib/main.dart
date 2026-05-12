@@ -628,7 +628,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       Stack(
                         children: [
                           Center(
-                            child: const RadiantMandalaPortal(images: carouselImages),
+                            child: RadiantMandalaPortal(
+                              images: carouselImages,
+                              onArrowTap: () {
+                                _worldController.animateToPage(
+                                  1,
+                                  duration: const Duration(milliseconds: 1000),
+                                  curve: Curves.fastOutSlowIn,
+                                );
+                              },
+                            ),
                           ),
                           // Scroll Hint / Tap Zone at bottom
                           Positioned(
@@ -784,11 +793,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                       height: 160.0,
                                     ),
                                     items: snapshot.data!.map((bannerData) {
+                                      final provider = Provider.of<LanguageProvider>(context, listen: false);
+                                      final lang = provider.selectedLanguages.isNotEmpty ? provider.selectedLanguages.first : 'English';
+                                      
+                                      String getLocalized(String key) {
+                                        if (lang == 'Telugu' && bannerData['${key}_te'] != null && bannerData['${key}_te'].toString().isNotEmpty) return bannerData['${key}_te'];
+                                        if (lang == 'Hindi' && bannerData['${key}_hi'] != null && bannerData['${key}_hi'].toString().isNotEmpty) return bannerData['${key}_hi'];
+                                        if (lang == 'Tamil' && bannerData['${key}_ta'] != null && bannerData['${key}_ta'].toString().isNotEmpty) return bannerData['${key}_ta'];
+                                        if (lang == 'Kannada' && bannerData['${key}_kn'] != null && bannerData['${key}_kn'].toString().isNotEmpty) return bannerData['${key}_kn'];
+                                        return bannerData[key] ?? '';
+                                      }
+
                                       return PromoBanner(
-                                        title: bannerData['title'] ?? '',
-                                        subtitle: bannerData['subtitle'] ?? '',
-                                        discountText: bannerData['discount_text'] ?? '',
-                                        buttonText: bannerData['button_text'] ?? AppLocalizations.of(context)!.promo_button_text,
+                                        title: getLocalized('title'),
+                                        subtitle: getLocalized('subtitle'),
+                                        discountText: bannerData['discount_text'] != null && bannerData['discount_text'].isNotEmpty ? TranslationService().translate(bannerData['discount_text'], lang) : '',
+                                        buttonText: bannerData['button_text'] != null && bannerData['button_text'].isNotEmpty ? TranslationService().translate(bannerData['button_text'], lang) : AppLocalizations.of(context)!.promo_button_text,
                                         buttonLink: bannerData['button_link'] ?? '',
                                         backgroundImageUrl: bannerData['bg_image_url'] ?? '',
                                         iconImageUrl: bannerData['icon_url'] ?? '',

@@ -9,7 +9,8 @@ import 'translation_service.dart';
 
 class RadiantMandalaPortal extends StatefulWidget {
   final List<String> images;
-  const RadiantMandalaPortal({super.key, required this.images});
+  final VoidCallback? onArrowTap;
+  const RadiantMandalaPortal({super.key, required this.images, this.onArrowTap});
 
   @override
   State<RadiantMandalaPortal> createState() => _RadiantMandalaPortalState();
@@ -80,6 +81,7 @@ class _RadiantMandalaPortalState extends State<RadiantMandalaPortal> with Ticker
   void dispose() {
     _rotationController.dispose();
     _pulseController.dispose();
+    _guideController.dispose();
     super.dispose();
   }
 
@@ -322,38 +324,42 @@ class _RadiantMandalaPortalState extends State<RadiantMandalaPortal> with Ticker
                 // 6. SACRED GUIDE (Breathing Downward Arrow)
                 Positioned(
                   top: (MediaQuery.of(context).size.height / 2) + (baseSize * 0.45) + 20,
-                  child: AnimatedBuilder(
-                    animation: _guideController,
-                    builder: (context, child) {
-                      final provider = Provider.of<LanguageProvider>(context);
-                      final lang = provider.selectedLanguages.isNotEmpty ? provider.selectedLanguages.first : 'English';
+                  child: GestureDetector(
+                    onTap: widget.onArrowTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedBuilder(
+                      animation: _guideController,
+                      builder: (context, child) {
+                        final provider = Provider.of<LanguageProvider>(context);
+                        final lang = provider.selectedLanguages.isNotEmpty ? provider.selectedLanguages.first : 'English';
 
-                      return Column(
-                        children: [
-                          Text(
-                            TranslationService().translate('descend_to_explore', lang),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange.shade800,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Transform.translate(
-                            offset: Offset(0, _guideSlideAnimation.value),
-                            child: Opacity(
-                              opacity: _guideOpacityAnimation.value,
-                              child: Icon(
-                                Icons.keyboard_double_arrow_down_rounded,
+                        return Column(
+                          children: [
+                            Text(
+                              TranslationService().translate('descend_to_explore', lang),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                                 color: Colors.orange.shade800,
-                                size: 28,
+                                letterSpacing: 2,
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
+                            const SizedBox(height: 5),
+                            Transform.translate(
+                              offset: Offset(0, _guideSlideAnimation.value),
+                              child: Opacity(
+                                opacity: _guideOpacityAnimation.value,
+                                child: Icon(
+                                  Icons.keyboard_double_arrow_down_rounded,
+                                  color: Colors.orange.shade800,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
