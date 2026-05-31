@@ -30,6 +30,9 @@ import 'notification_service.dart';
 import 'ritual_booking_screen.dart';
 import 'mandala_portal.dart';
 
+// Global notifier: true = user is on the portal screen (hide nav bar)
+final ValueNotifier<bool> portalVisibleNotifier = ValueNotifier<bool>(true);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -150,6 +153,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  bool _isPortalVisible = true;
 
   final List<Widget> _pages = [
     const HomeScreen(),
@@ -158,21 +162,42 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    portalVisibleNotifier.addListener(_onPortalVisibilityChanged);
+  }
+
+  void _onPortalVisibilityChanged() {
+    setState(() => _isPortalVisible = portalVisibleNotifier.value);
+  }
+
+  @override
+  void dispose() {
+    portalVisibleNotifier.removeListener(_onPortalVisibilityChanged);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFF9F9F9),
-        image: DecorationImage(
-          image: AssetImage('assets/images/OM-Symbol.png'),
-          fit: BoxFit.scaleDown,
-          colorFilter: ColorFilter.mode(Colors.white70, BlendMode.lighten),
-        ),
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: _pages[_currentIndex],
         extendBody: true,
-        bottomNavigationBar: SafeArea(
+        bottomNavigationBar: AnimatedSlide(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+          // Slide off screen downward when portal is visible and on Home tab
+          offset: (_isPortalVisible && _currentIndex == 0)
+              ? const Offset(0, 1)
+              : Offset.zero,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: (_isPortalVisible && _currentIndex == 0) ? 0.0 : 1.0,
+            child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.only(left: 50, right: 50, bottom: 25),
             child: Container(
@@ -209,6 +234,8 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ),
+          ),
+          ),
       ),
     );
   }
@@ -221,7 +248,10 @@ class _MainScreenState extends State<MainScreen> {
   ) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+          if (index != 0) portalVisibleNotifier.value = false;
+          setState(() => _currentIndex = index);
+        },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutQuint,
@@ -371,10 +401,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   static const List<String> carouselImages = [
-    "assets/images/1756780765_unGIE8KKaY.webp",
-    "assets/images/sabarimala-share-image.jpg",
-    "assets/images/tiruvannamalai-aerial.jpg",
-    "assets/images/image.png",
+    "assets/images/temple_gopuram.png",
+    "assets/images/temple_reflection.png",
+    "assets/images/temple_madurai.png",
+    "assets/images/temple_varanasi.png",
   ];
 
   List<dynamic> _filteredPlaces = [];
@@ -389,6 +419,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _determinePosition();
+    // Notify when portal page visibility changes
+    _worldController.addListener(() {
+      final page = _worldController.page ?? 0;
+      portalVisibleNotifier.value = page < 0.5;
+    });
   }
 
   Future<void> _determinePosition() async {
@@ -639,35 +674,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                             ),
                           ),
-                          // Scroll Hint / Tap Zone at bottom
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            height: 120,
-                            child: GestureDetector(
-                              onTap: () {
-                                _worldController.animateToPage(
-                                  1,
-                                  duration: const Duration(milliseconds: 1000),
-                                  curve: Curves.fastOutSlowIn,
-                                );
-                              },
-                              behavior: HitTestBehavior.translucent,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      Colors.white.withOpacity(0.1),
-                                      Colors.transparent,
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
 
@@ -894,23 +900,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                         imageUrl: "assets/images/image.png",
                                       ),
                                       const SizedBox(height: 100), // Spacing for bottom nav
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
                   ),
           ),
         ],
       ),
-      ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildMusicCard({
     required String title,

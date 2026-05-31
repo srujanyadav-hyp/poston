@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
+import 'dart:async';
 import 'ritual_booking_screen.dart';
 import 'language_provider.dart';
 import 'translation_service.dart';
@@ -16,443 +15,389 @@ class RadiantMandalaPortal extends StatefulWidget {
   State<RadiantMandalaPortal> createState() => _RadiantMandalaPortalState();
 }
 
-class _RadiantMandalaPortalState extends State<RadiantMandalaPortal> with TickerProviderStateMixin {
-  late AnimationController _rotationController;
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-  int _currentImageIndex = 0;
-  bool _isTransitioning = false;
+class _RadiantMandalaPortalState extends State<RadiantMandalaPortal>
+    with TickerProviderStateMixin {
+  int _outgoingIndex = 0;
+  int _incomingIndex = 1;
+  bool _isCrossfading = false;
+  Timer? _imageTimer;
 
-  late AnimationController _guideController;
-  late Animation<double> _guideSlideAnimation;
-  late Animation<double> _guideOpacityAnimation;
+  late AnimationController _crossfadeCtrl;
+  late Animation<double> _crossfadeOpacity;
+
+  late AnimationController _shimmerController;
+  late AnimationController _arrowController;
+  late AnimationController _badgeController;
+  late Animation<double> _shimmer;
+  late Animation<double> _arrowBounce;
+  late Animation<double> _arrowOpacity;
+  late Animation<double> _badgePulse;
 
   @override
   void initState() {
     super.initState();
-    _rotationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 40),
-    )..repeat();
 
-    _pulseController = AnimationController(
+    _crossfadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(milliseconds: 1500),
+    );
+    _crossfadeOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _crossfadeCtrl, curve: Curves.easeInOut),
+    );
+
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+    _shimmer = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
+
+    _arrowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.02).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    _arrowBounce = Tween<double>(begin: 0.0, end: 12.0).animate(
+      CurvedAnimation(parent: _arrowController, curve: Curves.easeInOut),
+    );
+    _arrowOpacity = Tween<double>(begin: 0.2, end: 1.0).animate(
+      CurvedAnimation(parent: _arrowController, curve: Curves.easeInOut),
     );
 
-    _guideController = AnimationController(
+    _badgeController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-
-    _guideSlideAnimation = Tween<double>(begin: -10.0, end: 20.0).animate(
-      CurvedAnimation(parent: _guideController, curve: Curves.easeOut),
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _badgePulse = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(parent: _badgeController, curve: Curves.easeInOut),
     );
 
-    _guideOpacityAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 1.0), weight: 30),
-      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 40),
-      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.0), weight: 30),
-    ]).animate(_guideController);
-    
-    // Auto-advance images with ethereal timing
-    _startAutoAdvance();
+    _startImageCycle();
   }
 
-  void _startAutoAdvance() {
-    Future.delayed(const Duration(seconds: 6), () {
+  void _startImageCycle() {
+    _imageTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (!mounted || _isCrossfading) return;
+      _triggerCrossfade();
+    });
+  }
+
+  void _triggerCrossfade() {
+    final nextIndex = (_outgoingIndex + 1) % widget.images.length;
+    setState(() {
+      _incomingIndex = nextIndex;
+      _isCrossfading = true;
+    });
+    _crossfadeCtrl.forward(from: 0.0).then((_) {
       if (!mounted) return;
       setState(() {
-        _isTransitioning = true;
-        _currentImageIndex = (_currentImageIndex + 1) % widget.images.length;
+        _outgoingIndex = nextIndex;
+        _isCrossfading = false;
       });
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        if (mounted) setState(() => _isTransitioning = false);
-      });
-      _startAutoAdvance();
     });
   }
 
   @override
   void dispose() {
-    _rotationController.dispose();
-    _pulseController.dispose();
-    _guideController.dispose();
+    _imageTimer?.cancel();
+    _crossfadeCtrl.dispose();
+    _shimmerController.dispose();
+    _arrowController.dispose();
+    _badgeController.dispose();
     super.dispose();
+  }
+
+  void _navigateToBooking() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 700),
+        pageBuilder: (context, animation, _) => const RitualBookingScreen(),
+        transitionsBuilder: (context, animation, _, child) {
+          return SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double availableHeight = constraints.maxHeight;
-        final double availableWidth = constraints.maxWidth - 48;
-        final double baseSize = math.min(availableWidth, availableHeight);
-        
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                transitionDuration: const Duration(milliseconds: 800),
-                pageBuilder: (context, animation, secondaryAnimation) => const RitualBookingScreen(),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.8, end: 1.0).animate(
-                        CurvedAnimation(parent: animation, curve: Curves.fastOutSlowIn),
-                      ),
-                      child: child,
-                    ),
-                  );
-                },
+    final lang = Provider.of<LanguageProvider>(context).selectedLanguages.firstOrNull ?? 'English';
+    final size = MediaQuery.of(context).size;
+
+    return SizedBox(
+      width: size.width,
+      height: size.height,
+      child: Stack(
+        children: [
+          // ── LAYER 1: Dual-layer seamless crossfade ──
+          _KenBurnsBackground(
+            key: ValueKey('out_$_outgoingIndex'),
+            imagePath: widget.images[_outgoingIndex],
+          ),
+          if (_isCrossfading)
+            FadeTransition(
+              opacity: _crossfadeOpacity,
+              child: _KenBurnsBackground(
+                key: ValueKey('in_$_incomingIndex'),
+                imagePath: widget.images[_incomingIndex],
               ),
-            );
-          },
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            height: availableHeight,
-            child: Stack(
-              alignment: Alignment.center,
+            ),
+
+          // ── LAYER 2: Cinematic Gradient Scrim ──
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0.0, 0.3, 0.6, 1.0],
+                colors: [
+                  Colors.black.withOpacity(0.55),
+                  Colors.black.withOpacity(0.15),
+                  Colors.black.withOpacity(0.35),
+                  Colors.black.withOpacity(0.88),
+                ],
+              ),
+            ),
+          ),
+
+          // ── LAYER 3: Background tap zones (Translucent) ──
+          Positioned.fill(
+            child: Column(
               children: [
-                // 1. THE "GLOW-ROOM" (Depth Separation from Background Om)
-                // This creates a soft focused area that separates the Mandala from the background
-                Container(
-                  width: baseSize * 0.95,
-                  height: baseSize * 0.95,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 40,
-                        spreadRadius: 10,
-                      ),
-                    ],
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _navigateToBooking,
+                    behavior: HitTestBehavior.translucent,
+                    child: const SizedBox.expand(),
                   ),
-                  child: ClipOval(
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                ),
+                const SizedBox(height: 110), // Protect the arrow area from background booking taps
+              ],
+            ),
+          ),
+
+          // ── LAYER 4: Top Brand Strip ──
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AnimatedBuilder(
+                    animation: _badgePulse,
+                    builder: (context, _) => Opacity(
+                      opacity: _badgePulse.value,
                       child: Container(
-                        color: Colors.orange.shade900.withOpacity(0.1),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Atmospheric Background Glow
-                Container(
-                  width: baseSize * 0.9,
-                  height: baseSize * 0.9,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        Colors.orange.withOpacity(0.3),
-                        Colors.orange.withOpacity(0.1),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-                
-                // Outer Mandala Ring (Slow Rotation)
-                AnimatedBuilder(
-                  animation: _rotationController,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _rotationController.value * 2 * math.pi,
-                      child: CustomPaint(
-                        size: Size(baseSize * 0.85, baseSize * 0.85),
-                        painter: MandalaPainter(
-                          color: Colors.orange.shade800.withOpacity(0.3),
-                          petals: 32,
-                          radiusScale: 1.0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ),
-                    );
-                  },
-                ),
-
-                // Middle Mandala Ring (Reverse Rotation)
-                AnimatedBuilder(
-                  animation: _rotationController,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: -_rotationController.value * 3 * math.pi,
-                      child: CustomPaint(
-                        size: Size(baseSize * 0.65, baseSize * 0.65),
-                        painter: MandalaPainter(
-                          color: Colors.orange.shade600.withOpacity(0.4),
-                          petals: 20,
-                          radiusScale: 0.8,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                // THE DIVINE VIEWPORT (ETHEREAL DEPTH TRANSITION)
-                ScaleTransition(
-                  scale: _pulseAnimation,
-                  child: Container(
-                    width: baseSize * 0.5,
-                    height: baseSize * 0.5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.orange.shade200, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.orange.shade900.withOpacity(0.4),
-                          blurRadius: 30,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 2000),
-                        switchInCurve: Curves.easeInOutSine,
-                        switchOutCurve: Curves.easeInOutSine,
-                        transitionBuilder: (Widget child, Animation<double> animation) {
-                          final zoomIn = Tween<double>(begin: 1.2, end: 1.0).animate(animation);
-                          final zoomOut = Tween<double>(begin: 0.8, end: 1.0).animate(animation);
-                          
-                          return FadeTransition(
-                            opacity: animation,
-                            child: ScaleTransition(
-                              scale: child.key == ValueKey(_currentImageIndex) ? zoomIn : zoomOut,
-                              child: child,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 7, height: 7,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          );
-                        },
-                        child: KenBurnsImage(
-                          key: ValueKey(_currentImageIndex),
-                          imagePath: widget.images[_currentImageIndex],
+                            const SizedBox(width: 6),
+                            const Text(
+                              'LIVE RITUALS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ),
+                  Row(
+                    children: List.generate(widget.images.length, (i) {
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: i == _outgoingIndex ? 18 : 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: i == _outgoingIndex
+                              ? Colors.orangeAccent
+                              : Colors.white.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-                // Centered Small Om
-                IgnorePointer(
-                  child: Container(
-                    width: baseSize * 0.15,
-                    height: baseSize * 0.15,
+          // ── LAYER 5: Bottom Content Card ──
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 30),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.92),
+                    Colors.black.withOpacity(0.0),
+                  ],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.6),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.orange.withOpacity(0.2),
-                          blurRadius: 10,
-                        ),
-                      ],
+                      border: Border.all(color: Colors.orangeAccent.withOpacity(0.7)),
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Center(
-                      child: Text(
-                        'ॐ',
-                        style: TextStyle(
-                          fontSize: baseSize * 0.08,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
+                    child: const Text(
+                      'SACRED RITUALS & PUJA',
+                      style: TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2.5,
                       ),
                     ),
                   ),
-                ),
-
-                // 5. SACRED HEADER (Ethereal Animation at the Top)
-                Positioned(
-                  top: baseSize * 0.02,
-                  child: AnimatedBuilder(
-                    animation: _pulseAnimation,
-                    builder: (context, child) {
-                      final provider = Provider.of<LanguageProvider>(context);
-                      final lang = provider.selectedLanguages.isNotEmpty ? provider.selectedLanguages.first : 'English';
-                      
-                      return Opacity(
-                        opacity: ((_pulseAnimation.value - 0.98) * 20 + 0.5).clamp(0.0, 1.0), // Clamped pulse
-                        child: Transform.scale(
-                          scale: _pulseAnimation.value,
-                          child: Column(
-                            children: [
-                              Text(
-                                TranslationService().translate('book_divine_ritual', lang),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.orange.shade800,
-                                  letterSpacing: 3,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.orange.withOpacity(0.5),
-                                      blurRadius: 10,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                width: 60,
-                                height: 1.5,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.orange.shade700,
-                                      Colors.transparent,
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                  const SizedBox(height: 12),
+                  Text(
+                    TranslationService().translate('book_divine_ritual', lang),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      height: 1.2,
+                      letterSpacing: -0.5,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  AnimatedBuilder(
+                    animation: _shimmer,
+                    builder: (context, _) {
+                      return ShaderMask(
+                        shaderCallback: (rect) => LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          stops: [
+                            (_shimmer.value - 0.4).clamp(0.0, 1.0),
+                            _shimmer.value.clamp(0.0, 1.0),
+                            (_shimmer.value + 0.4).clamp(0.0, 1.0),
+                          ],
+                          colors: const [
+                            Color(0xFFE65C00),
+                            Color(0xFFFFD700),
+                            Color(0xFFE65C00),
+                          ],
+                        ).createShader(rect),
+                        child: Container(
+                          height: 2,
+                          width: 120,
+                          color: Colors.white,
                         ),
                       );
                     },
                   ),
-                ),
-
-                // 6. SACRED GUIDE (Breathing Downward Arrow)
-                Positioned(
-                  top: (MediaQuery.of(context).size.height / 2) + (baseSize * 0.45) + 20,
-                  child: GestureDetector(
-                    onTap: widget.onArrowTap,
-                    behavior: HitTestBehavior.opaque,
-                    child: AnimatedBuilder(
-                      animation: _guideController,
-                      builder: (context, child) {
-                        final provider = Provider.of<LanguageProvider>(context);
-                        final lang = provider.selectedLanguages.isNotEmpty ? provider.selectedLanguages.first : 'English';
-
-                        return Column(
-                          children: [
-                            Text(
-                              TranslationService().translate('descend_to_explore', lang),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade800,
-                                letterSpacing: 2,
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: _navigateToBooking,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF9933), Color(0xFFE65C00)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFE65C00).withOpacity(0.5),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            TranslationService().translate('book_a_ritual', lang),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Bouncing Down Arrow integrated into Row
+                      GestureDetector(
+                        onTap: widget.onArrowTap,
+                        behavior: HitTestBehavior.opaque,
+                        child: AnimatedBuilder(
+                          animation: _arrowController,
+                          builder: (context, _) => Opacity(
+                            opacity: _arrowOpacity.value,
+                            child: Transform.translate(
+                              offset: Offset(0, _arrowBounce.value),
+                              child: const Icon(
+                                Icons.keyboard_double_arrow_down_rounded,
+                                color: Colors.orangeAccent,
+                                size: 40,
                               ),
                             ),
-                            const SizedBox(height: 5),
-                            Transform.translate(
-                              offset: Offset(0, _guideSlideAnimation.value),
-                              child: Opacity(
-                                opacity: _guideOpacityAnimation.value,
-                                child: Icon(
-                                  Icons.keyboard_double_arrow_down_rounded,
-                                  color: Colors.orange.shade800,
-                                  size: 28,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-class KenBurnsImage extends StatefulWidget {
-  final String imagePath;
-  const KenBurnsImage({super.key, required this.imagePath});
-
-  @override
-  State<KenBurnsImage> createState() => _KenBurnsImageState();
-}
-
-class _KenBurnsImageState extends State<KenBurnsImage> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..repeat(reverse: true);
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.linear),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: Image.asset(
-        widget.imagePath,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
+        ],
       ),
     );
   }
 }
 
-class MandalaPainter extends CustomPainter {
-  final Color color;
-  final int petals;
-  final double radiusScale;
-
-  MandalaPainter({required this.color, required this.petals, required this.radiusScale});
+class _KenBurnsBackground extends StatelessWidget {
+  final String imagePath;
+  const _KenBurnsBackground({super.key, required this.imagePath});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) * radiusScale;
-
-    for (int i = 0; i < petals; i++) {
-      final angle = (2 * math.pi / petals) * i;
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-      
-      canvas.drawCircle(Offset(x, y), radius / 3, paint);
-      
-      final nextAngle = (2 * math.pi / petals) * (i + 1);
-      final nextX = center.dx + radius * math.cos(nextAngle);
-      final nextY = center.dy + radius * math.sin(nextAngle);
-      
-      final path = Path()
-        ..moveTo(x, y)
-        ..quadraticBezierTo(center.dx, center.dy, nextX, nextY);
-      canvas.drawPath(path, paint);
-    }
-    
-    canvas.drawCircle(center, radius, paint..strokeWidth = 0.5);
+  Widget build(BuildContext context) {
+    return SizedBox.expand(
+      child: Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
